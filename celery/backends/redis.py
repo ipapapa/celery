@@ -200,7 +200,7 @@ class RedisBackend(base.BaseKeyValueStoreBackend, async.AsyncBackendMixin):
         return self.ensure(self._set, (key, value), **retry_policy)
 
     def _set(self, key, value):
-        with self.client.pipeline() as pipe:
+        with self.client.pipeline(transaction=False) as pipe:
             if self.expires:
                 pipe.setex(key, self.expires, value)
             else:
@@ -246,7 +246,7 @@ class RedisBackend(base.BaseKeyValueStoreBackend, async.AsyncBackendMixin):
         jkey = self.get_key_for_group(gid, '.j')
         tkey = self.get_key_for_group(gid, '.t')
         result = self.encode_result(result, state)
-        with client.pipeline() as pipe:
+        with client.pipeline(transaction=False) as pipe:
             _, readycount, totaldiff, _, _ = pipe                           \
                 .rpush(jkey, self.encode([1, tid, state, result]))          \
                 .llen(jkey)                                                 \
@@ -262,7 +262,7 @@ class RedisBackend(base.BaseKeyValueStoreBackend, async.AsyncBackendMixin):
             total = callback['chord_size'] + totaldiff
             if readycount == total:
                 decode, unpack = self.decode, self._unpack_chord_result
-                with client.pipeline() as pipe:
+                with client.pipeline(transaction=False) as pipe:
                     resl, _, _ = pipe               \
                         .lrange(jkey, 0, total)     \
                         .delete(jkey)               \
